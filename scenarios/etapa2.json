@@ -1,0 +1,96 @@
+{
+  "name": "etapa2",
+  "description": "Etapa 2: zonas de desechos y objetos ocupados.",
+  "n_satellites": 8,
+  "altitude_km": 500.0,
+  "min_elevation_deg": 30.0,
+  "region_radius_km": 300.0,
+  "coverage_threshold": 0.95,
+  "min_separation_deg": 3.0,
+  "priority_weights": {
+    "Alta": 3.0,
+    "Media": 2.0,
+    "Normal": 1.0
+  },
+  "fitness_weights": {
+    "coverage": 0.85,
+    "redundancy": 0.1,
+    "proximity": 0.05,
+    "proximity_scale_deg": 90.0
+  },
+  "regions": [
+    {
+      "name": "Península de Yucatán",
+      "lat": 20.5,
+      "lon": -89.0,
+      "priority": "Alta"
+    },
+    {
+      "name": "Amazonía brasileña",
+      "lat": -3.5,
+      "lon": -62.0,
+      "priority": "Alta"
+    },
+    {
+      "name": "California",
+      "lat": 36.8,
+      "lon": -119.4,
+      "priority": "Media"
+    },
+    {
+      "name": "Sahel",
+      "lat": 15.0,
+      "lon": 0.0,
+      "priority": "Media"
+    },
+    {
+      "name": "Japón",
+      "lat": 36.0,
+      "lon": 138.0,
+      "priority": "Media"
+    },
+    {
+      "name": "Interior de Australia",
+      "lat": -25.0,
+      "lon": 133.0,
+      "priority": "Normal"
+    }
+  ],
+  "zones": [
+    {
+      "name": "Atlántico Norte",
+      "lat": 45.0,
+      "lon": -35.0,
+      "radius": 12.0,
+      "kind": "desechos"
+    },
+    {
+      "name": "Pacífico Sur",
+      "lat": -30.0,
+      "lon": -120.0,
+      "radius": 10.0,
+      "kind": "desechos"
+    },
+    {
+      "name": "Región polar norte",
+      "lat": 78.0,
+      "lon": 30.0,
+      "radius": 8.0,
+      "kind": "desechos"
+    },
+    {
+      "name": "Objeto A",
+      "lat": 10.0,
+      "lon": 45.0,
+      "radius": 5.0,
+      "kind": "objeto"
+    },
+    {
+      "name": "Objeto B",
+      "lat": -15.0,
+      "lon": 110.0,
+      "radius": 5.0,
+      "kind": "objeto"
+    }
+  ]
+}
