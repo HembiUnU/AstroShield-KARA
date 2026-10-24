@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AstroShield · Visor 3D</title>
+<style>
+:root{
+  --bg:#070b14; --panel:#0f1626; --panel2:#151f33; --line:#24304a; --text:#e6ecf7; --muted:#8c9ab5;
+  --accent:#5ab0ff; --ok:#3ddc84; --warn:#ffb020; --bad:#ff4d5e; --obj:#c77dff; --sat:#ffffff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+#app{display:grid;grid-template-columns:360px 1fr;height:100vh}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:14px 16px}
+h1{font-size:18px;margin:0 0 2px} h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px}
+.sub{color:var(--muted);font-size:12px}
+select,button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+select{width:100%} button{cursor:pointer} button.on{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:600}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.seg button{flex:1}
+input[type=range]{width:100%}
+.note{background:var(--panel2);border-left:3px solid var(--accent);padding:8px 10px;border-radius:4px;font-size:12.5px;margin-top:8px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.kpi{background:var(--panel2);border-radius:6px;padding:6px 8px}
+.kpi b{display:block;font-size:17px} .kpi span{color:var(--muted);font-size:11.5px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:4px 5px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:500}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.st-cubierta{color:var(--ok)} .st-parcial{color:var(--warn)} .st-no{color:var(--bad)}
+.legend div{display:flex;align-items:center;gap:6px;font-size:12.5px;margin:2px 0}
+.legend i{width:14px;height:10px;border-radius:2px;display:inline-block}
+label.chk{display:flex;gap:6px;align-items:center;font-size:12.5px;margin:2px 0}
+main{position:relative;display:grid;grid-template-rows:1fr 230px;min-width:0}
+#globe{position:relative;overflow:hidden}
+#globe canvas{display:block}
+#labels{position:absolute;inset:0;pointer-events:none}
+.lbl{position:absolute;transform:translate(-50%,-130%);font-size:11.5px;white-space:nowrap;padding:1px 5px;border-radius:4px;background:rgba(7,11,20,.7);border:1px solid rgba(255,255,255,.12)}
+.lbl.sat{font-size:10.5px;transform:translate(8px,-50%);background:rgba(7,11,20,.55)}
+#bottom{border-top:1px solid var(--line);background:var(--panel);display:grid;grid-template-columns:1fr 1fr;min-height:0}
+#bottom>div{padding:8px 12px;min-width:0;min-height:0;overflow:auto}
+#chart{width:100%;height:196px;margin-top:4px}
+.tabs{position:absolute;top:10px;right:10px;z-index:3}
+#expPanel{position:absolute;inset:0;background:var(--bg);z-index:2;overflow:auto;padding:18px 24px;display:none}
+#expPanel table{margin-bottom:14px;max-width:1100px}
+#expPanel h3{margin:18px 0 6px}
+.hint{position:absolute;left:10px;bottom:8px;color:var(--muted);font-size:11.5px;z-index:1}
+#err{display:none;padding:30px;color:var(--warn)}
+@media (max-width:900px){#app{grid-template-columns:1fr;height:auto}main{height:90vh}#bottom{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="err">No se encontró <code>data.js</code>. Ejecuta primero <code>python main.py experiments</code>.</div>
+<div id="app">
+<aside>
+  <h1>AstroShield</h1>
+  <div class="sub" id="gen"></div>
+
+  <h2>Ejecución</h2>
+  <select id="runSel"></select>
+  <div class="note" id="runNote"></div>
+
+  <h2>Configuración mostrada</h2>
+  <div class="row seg">
+    <button data-mode="initial">Inicial</button>
+    <button data-mode="final" class="on">Final</button>
+    <button data-mode="compare">Comparar</button>
+  </div>
+  <div style="margin-top:10px">
+    <div class="row" style="justify-content:space-between"><span>Generación: <b id="genLbl">-</b></span>
+      <button id="play">▶ Reproducir evolución</button></div>
+    <input type="range" id="genSlider" min="0" max="0" value="0">
+  </div>
+  <div class="sub" id="modeLbl"></div>
+
+  <h2>Métricas</h2>
+  <div class="kpis" id="kpis"></div>
+
+  <h2>Regiones</h2>
+  <table id="regTbl"></table>
+
+  <h2>Restricciones</h2>
+  <div id="violations" class="sub"></div>
+
+  <h2>Satélites</h2>
+  <table id="satTbl"></table>
+
+  <h2>Capas</h2>
+  <label class="chk"><input type="checkbox" id="lyFoot" checked> Huellas de los satélites</label>
+  <label class="chk"><input type="checkbox" id="lyZones" checked> Zonas restringidas y objetos</label>
+  <label class="chk"><input type="checkbox" id="lyLabels" checked> Etiquetas</label>
+  <label class="chk"><input type="checkbox" id="lyRotate"> Rotación automática</label>
+
+  <h2>Leyenda</h2>
+  <div class="legend">
+    <div><i style="background:var(--ok)"></i>Región cubierta (≥ umbral)</div>
+    <div><i style="background:var(--warn)"></i>Región parcialmente cubierta</div>
+    <div><i style="background:var(--bad)"></i>Región no cubierta</div>
+    <div><i style="background:#ff5a36;opacity:.7"></i>Zona de desechos (en la capa orbital)</div>
+    <div><i style="background:var(--obj)"></i>Objeto existente y su zona de exclusión</div>
+    <div><i style="background:#fff;border-radius:50%"></i>Satélite (rojo si incumple restricciones)</div>
+    <div><i style="background:#5ab0ff;opacity:.5"></i>Huella de observación</div>
+    <div><i style="background:#888;border-radius:50%"></i>Satélite de la configuración inicial (comparar)</div>
+  </div>
+  <p class="sub">Altitud de la capa orbital exagerada ×2 para que sea visible. Arrastra para girar, rueda para acercar.</p>
+</aside>
+<main>
+  <div id="globe">
+    <div class="tabs row"><button id="tabGlobe" class="on">Globo 3D</button><button id="tabExp">Experimentos</button></div>
+    <div id="labels"></div>
+    <div class="hint" id="hint"></div>
+    <div id="expPanel"></div>
+  </div>
+  <div id="bottom">
+    <div><b>Convergencia de esta ejecución</b>
+      <canvas id="chart"></canvas></div>
+    <div id="runInfo"></div>
+  </div>
+</main>
+</div>
+
+<script src="data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+const D = window.ASTRO_DATA;
+if(!D){document.getElementById('err').style.display='block';document.getElementById('app').style.display='none';return;}
+const $ = id => document.getElementById(id);
+const COL = {ok:0x3ddc84, warn:0xffb020, bad:0xff4d5e, debris:0xff5a36, obj:0xc77dff, foot:0x5ab0ff, sat:0xffffff, ghost:0x8a8a8a};
+const STCOL = {"cubierta":COL.ok,"parcial":COL.warn,"no cubierta":COL.bad};
+const R_E = 6371, EXAG = 2;
+
+// ---------------------------------------------------------------- geometría
+const rad = d => d*Math.PI/180, deg = r => r*180/Math.PI;
+function xyz(lat, lon, r){            // coincide con el mapeo UV de SphereGeometry
+  const phi = rad(90-lat), th = rad(lon+180);
+  return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(th), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(th));
+}
+function dest(lat, lon, brg, d){
+  const p1=rad(lat), l1=rad(lon), b=rad(brg), dd=rad(d);
+  const p2=Math.asin(Math.sin(p1)*Math.cos(dd)+Math.cos(p1)*Math.sin(dd)*Math.cos(b));
+  const l2=l1+Math.atan2(Math.sin(b)*Math.sin(dd)*Math.cos(p1), Math.cos(dd)-Math.sin(p1)*Math.sin(p2));
+  return [deg(p2), deg(l2)];
+}
+function capGeom(lat, lon, radius, r, rings=8, seg=72){
+  const pos=[], idx=[];
+  const c=xyz(lat,lon,r); pos.push(c.x,c.y,c.z);
+  for(let i=1;i<=rings;i++) for(let j=0;j<seg;j++){
+    const p=dest(lat,lon,360*j/seg,radius*i/rings), v=xyz(p[0],p[1],r); pos.push(v.x,v.y,v.z);
+  }
+  for(let j=0;j<seg;j++) idx.push(0,1+j,1+(j+1)%seg);
+  for(let i=1;i<rings;i++) for(let j=0;j<seg;j++){
+    const a=1+(i-1)*seg+j, b=1+(i-1)*seg+(j+1)%seg, c2=1+i*seg+j, d2=1+i*seg+(j+1)%seg;
+    idx.push(a,c2,b, b,c2,d2);
+  }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx);
+  return g;
+}
+function ringLine(lat, lon, radius, r, color, opacity=1){
+  const pts=[]; for(let j=0;j<=96;j++){const p=dest(lat,lon,360*j/96,radius); pts.push(xyz(p[0],p[1],r));}
+  return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({color,transparent:true,opacity}));
+}
+function cap(lat, lon, radius, r, color, opacity){
+  return new THREE.Mesh(capGeom(lat,lon,radius,r), new THREE.MeshBasicMaterial({color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false}));
+}
+
+// ---------------------------------------------------------------- escena
+const host=$('globe');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(2,window.devicePixelRatio));
+host.insertBefore(renderer.domElement, host.firstChild);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,1,0.01,100);
+camera.position.copy(xyz(15,-80,4.2));
+const controls=new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping=true; controls.minDistance=1.4; controls.maxDistance=10;
+scene.add(new THREE.AmbientLight(0xffffff,0.75));
+const sun=new THREE.DirectionalLight(0xffffff,0.55); sun.position.set(5,3,5); scene.add(sun);
+
+// estrellas
+{const g=new THREE.BufferGeometry(), p=[]; for(let i=0;i<1500;i++){const v=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize().multiplyScalar(40); p.push(v.x,v.y,v.z);} g.setAttribute('position',new THREE.Float32BufferAttribute(p,3)); scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0x8899bb,size:0.06})));}
+
+const earthMat=new THREE.MeshPhongMaterial({color:0x1d4f8a, shininess:8});
+new THREE.TextureLoader().load('assets/earth.jpg', t=>{earthMat.map=t;earthMat.color.set(0xffffff);earthMat.needsUpdate=true;},
+  undefined, ()=>new THREE.TextureLoader().load('https://cdn.jsdelivr.net/npm/three-globe@2.24.13/example/img/earth-blue-marble.jpg',
+    t=>{earthMat.map=t;earthMat.color.set(0xffffff);earthMat.needsUpdate=true;}));
+const earth=new THREE.Mesh(new THREE.SphereGeometry(1,96,64), earthMat); scene.add(earth);
+// retícula lat/lon
+const grid=new THREE.Group(); scene.add(grid);
+for(let la=-60;la<=60;la+=30){const pts=[];for(let lo=-180;lo<=180;lo+=3)pts.push(xyz(la,lo,1.002));grid.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.12})));}
+for(let lo=-180;lo<180;lo+=30){const pts=[];for(let la=-90;la<=90;la+=3)pts.push(xyz(la,lo,1.002));grid.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.12})));}
+
+const layers={static:new THREE.Group(), zones:new THREE.Group(), regions:new THREE.Group(), sats:new THREE.Group(), foot:new THREE.Group(), ghost:new THREE.Group()};
+Object.values(layers).forEach(g=>scene.add(g));
+
+// ---------------------------------------------------------------- etiquetas HTML
+const labelBox=$('labels'); let labels=[];
+function clearLabels(){labelBox.innerHTML='';labels=[];}
+function addLabel(text, pos, cls='', color){
+  const el=document.createElement('div'); el.className='lbl '+cls; el.textContent=text; if(color) el.style.color=color;
+  labelBox.appendChild(el); labels.push({el,pos});
+}
+function updateLabels(){
+  const show=$('lyLabels').checked && $('expPanel').style.display!=='block';
+  const w=host.clientWidth,h=host.clientHeight, camDir=camera.position.clone().normalize();
+  for(const l of labels){
+    const front=l.pos.clone().normalize().dot(camDir) > 0.15;
+    if(!show||!front){l.el.style.display='none';continue;}
+    const p=l.pos.clone().applyMatrix4(earth.matrixWorld).project(camera);
+    l.el.style.display='block'; l.el.style.left=((p.x+1)/2*w)+'px'; l.el.style.top=((1-p.y)/2*h)+'px';
+  }
+}
+
+// ---------------------------------------------------------------- estado
+let run=null, mode='final', gen=0, playing=null;
+const sel=$('runSel');
+D.runs.forEach((r,i)=>{const o=document.createElement('option');o.value=i;o.textContent=r.title;sel.appendChild(o);});
+$('gen').textContent='Datos generados: '+D.generated;
+
+function clearGroup(g){while(g.children.length){const c=g.children.pop(); c.geometry&&c.geometry.dispose(); c.material&&c.material.dispose();}}
+
+function shellR(){return 1+EXAG*run.scenario.altitude_km/R_E;}
+
+function buildStatic(){
+  clearGroup(layers.zones);
+  const rs=shellR();
+  for(const z of run.scenario.zones){
+    const c = z.kind==='objeto'? COL.obj : COL.debris;
+    layers.zones.add(cap(z.lat,z.lon,z.radius,rs,c,0.28));
+    layers.zones.add(ringLine(z.lat,z.lon,z.radius,rs,c,0.9));
+    layers.zones.add(ringLine(z.lat,z.lon,z.radius,1.003,c,0.55));
+    if(z.kind==='objeto'){
+      const m=new THREE.Mesh(new THREE.OctahedronGeometry(0.022),new THREE.MeshBasicMaterial({color:COL.obj}));
+      m.position.copy(xyz(z.lat,z.lon,rs)); layers.zones.add(m);
+    }
+  }
+}
+
+function currentView(){
+  // devuelve {sats, regions:[{status,coverage}], bad:Set, label, report?}
+  if(mode==='gen'){
+    const h=run.history[gen];
+    return {sats:h.best_sats, regions:h.regions, bad:new Set(h.bad_sats), label:'Mejor individuo de la generación '+gen,
+            fitness:h.best_fitness, violation:h.best_violation, feasible:h.best_violation===0};
+  }
+  const c = mode==='initial'? run.initial : run.final;
+  const rep=c.report;
+  return {sats:c.sats, regions:rep.regions, bad:new Set(rep.violations.flatMap(v=>v.sat2!==undefined?[v.sat,v.sat2]:[v.sat])),
+          label:c.label, report:rep, fitness:rep.fitness, violation:rep.violation, feasible:rep.feasible};
+}
+
+function drawSats(group, sats, bad, ghost){
+  const rs=shellR();
+  sats.forEach((s,i)=>{
+    const p=xyz(s[0],s[1],rs);
+    const color = ghost? COL.ghost : (bad.has(i)? COL.bad : COL.sat);
+    const m=new THREE.Mesh(new THREE.SphereGeometry(ghost?0.016:0.022,16,12), new THREE.MeshBasicMaterial({color, transparent:ghost, opacity:ghost?0.7:1}));
+    m.position.copy(p); group.add(m);
+    const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints([p, xyz(s[0],s[1],1.003)]), new THREE.LineBasicMaterial({color, transparent:true, opacity:ghost?0.35:0.6}));
+    group.add(ln);
+    if(!ghost) addLabel('S'+(i+1), p, 'sat', bad.has(i)?'#ff8a95':'#fff');
+  });
+}
+
+function render(){
+  const v=currentView();
+  clearLabels(); clearGroup(layers.regions); clearGroup(layers.sats); clearGroup(layers.foot); clearGroup(layers.ghost);
+  const sc=run.scenario, rho=run.region_radius_deg, lam=run.footprint_deg;
+  sc.regions.forEach((r,i)=>{
+    const st=v.regions[i].status, c=STCOL[st];
+    layers.regions.add(cap(r.lat,r.lon,rho,1.004,c,0.75));
+    layers.regions.add(ringLine(r.lat,r.lon,rho*1.6,1.004,c,0.9));
+    addLabel(r.name, xyz(r.lat,r.lon,1.01), '', '#'+c.toString(16).padStart(6,'0'));
+  });
+  for(const z of sc.zones) addLabel(z.name, xyz(z.lat,z.lon,shellR()), '', z.kind==='objeto'?'#d9a6ff':'#ff9a80');
+  v.sats.forEach(s=>{
+    layers.foot.add(cap(s[0],s[1],lam,1.0025,COL.foot,0.16));
+    layers.foot.add(ringLine(s[0],s[1],lam,1.0025,COL.foot,0.7));
+  });
+  drawSats(layers.sats, v.sats, v.bad, false);
+  if(mode==='compare') drawSats(layers.ghost, run.initial.sats, new Set(), true);
+  if(mode==='compare'){ // flechas inicial -> final (emparejamiento por cercanía)
+    const used=new Set(), rs=shellR();
+    run.final.sats.forEach(f=>{
+      let best=-1,bd=1e9; run.initial.sats.forEach((s,j)=>{if(used.has(j))return;const d=xyz(s[0],s[1],1).distanceTo(xyz(f[0],f[1],1)); if(d<bd){bd=d;best=j;}});
+      used.add(best); const s=run.initial.sats[best];
+      const pts=[]; for(let t=0;t<=24;t++){const a=xyz(s[0],s[1],1),b=xyz(f[0],f[1],1); pts.push(a.clone().lerp(b,t/24).normalize().multiplyScalar(rs));}
+      layers.ghost.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({color:0xcccccc,dashSize:.02,gapSize:.015,transparent:true,opacity:.6})).computeLineDistances());
+    });
+  }
+  layers.foot.visible=$('lyFoot').checked; layers.zones.visible=$('lyZones').checked;
+  renderPanel(v); drawChart();
+}
+
+function fmt(x,d=3){return (Math.round(x*10**d)/10**d).toFixed(d);}
+function renderPanel(v){
+  $('modeLbl').textContent=v.label;
+  const nCov=v.regions.filter(r=>r.status==='cubierta').length;
+  $('kpis').innerHTML=`
+    <div class="kpi"><b>${fmt(v.fitness,4)}</b><span>Aptitud (máx. ref. ${fmt(refFitness(),4)})</span></div>
+    <div class="kpi"><b>${nCov} / ${v.regions.length}</b><span>Regiones cubiertas</span></div>
+    <div class="kpi"><b style="color:${v.feasible?'var(--ok)':'var(--bad)'}">${v.feasible?'Sí':'No'}</b><span>Configuración factible</span></div>
+    <div class="kpi"><b>${fmt(v.violation,2)}°</b><span>Violación total</span></div>`;
+  const sc=run.scenario;
+  let h='<tr><th>Región</th><th>Prior.</th><th>Cobertura</th><th>Estado</th></tr>';
+  sc.regions.forEach((r,i)=>{const x=v.regions[i]; const cls=x.status==='cubierta'?'st-cubierta':x.status==='parcial'?'st-parcial':'st-no';
+    const red = v.report? ` <span class="sub">(doble ${Math.round(v.report.regions[i].redundancy*100)}%)</span>`:'';
+    h+=`<tr><td>${r.name}</td><td>${r.priority}</td><td>${Math.round(x.coverage*100)}%${red}</td><td class="${cls}">${x.status}</td></tr>`;});
+  $('regTbl').innerHTML=h;
+  let vh='';
+  if(v.report){ if(!v.report.violations.length) vh='<span class="st-cubierta">Ningún satélite invade zonas restringidas, objetos ni la separación mínima ('+sc.min_separation_deg+'°).</span>';
+    else vh=v.report.violations.map(x=>x.type==='zona'?`<div class="st-no">S${x.sat+1} invade «${x.zone}» (${x.depth_deg}° dentro)</div>`:`<div class="st-no">S${x.sat+1} y S${x.sat2+1} a menos de ${sc.min_separation_deg}° (${x.depth_deg}° de déficit)</div>`).join('');}
+  else vh = v.bad.size? `<span class="st-no">Satélites con violación: ${[...v.bad].map(i=>'S'+(i+1)).join(', ')}</span>` : '<span class="st-cubierta">Sin violaciones.</span>';
+  $('violations').innerHTML=vh;
+  $('satTbl').innerHTML='<tr><th>Sat.</th><th>Lat</th><th>Lon</th></tr>'+v.sats.map((s,i)=>`<tr><td class="${v.bad.has(i)?'st-no':''}">S${i+1}</td><td>${fmt(s[0],2)}°</td><td>${fmt(s[1],2)}°</td></tr>`).join('');
+  $('genLbl').textContent = mode==='gen'? gen+' / '+(run.history.length-1) : (mode==='initial'?'inicial':mode==='final'?'final':'inicial vs final');
+}
+
+function refFitness(){
+  const E=D.experiments; const id=run.id;
+  if(id==='etapa1') return E.E1.reference.fitness;
+  if(id.startsWith('etapa2')) return E.E2.reference.fitness;
+  return E.E4[id]? E.E4[id].reference.fitness : 1;
+}
+
+function runInfo(){
+  const c=run.config, sc=run.scenario;
+  $('runNote').innerHTML = `<b>${sc.name}</b> · ${sc.description}${run.note?'<br>'+run.note:''}`;
+  $('runInfo').innerHTML=`<b>Parámetros de la ejecución</b>
+    <table>
+    <tr><td>Estrategia de restricciones</td><td>${c.strategy}</td></tr>
+    <tr><td>Población / generaciones</td><td>${c.pop_size} / ${c.generations}</td></tr>
+    <tr><td>Evaluaciones</td><td>${run.evaluations}</td></tr>
+    <tr><td>Torneo · cruce · mutación</td><td>k=${c.tournament} · ${c.crossover_rate} · ${c.mutation_rate} (σ ${c.sigma_start}°→${c.sigma_end}°)</td></tr>
+    <tr><td>Elitismo · semilla</td><td>${c.elitism} · ${c.seed}</td></tr>
+    <tr><td>Altitud · elevación mínima</td><td>${sc.altitude_km} km · ${sc.min_elevation_deg}° → huella ${fmt(run.footprint_deg,2)}° (${Math.round(run.footprint_deg*Math.PI/180*R_E)} km)</td></tr>
+    <tr><td>Radio de región · umbral</td><td>${sc.region_radius_km} km (${fmt(run.region_radius_deg,2)}°) · ${sc.coverage_threshold*100}% del disco</td></tr>
+    <tr><td>Pesos de prioridad</td><td>${Object.entries(sc.priority_weights).map(([k,v])=>k+' '+v).join(', ')}</td></tr>
+    </table>`;
+}
+
+// ---------------------------------------------------------------- gráfica
+function drawChart(){
+  const cv=$('chart'), dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr; const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const L=34,R=8,T=8,B=36, n=run.history.length, x=i=>L+(W-L-R)*i/Math.max(1,n-1), y=v=>T+(H-T-B)*(1-v);
+  ctx.font='11px system-ui'; ctx.fillStyle='#8c9ab5'; ctx.strokeStyle='#24304a';
+  for(let v=0;v<=1.001;v+=0.25){ctx.beginPath();ctx.moveTo(L,y(v));ctx.lineTo(W-R,y(v));ctx.stroke();ctx.fillText(v.toFixed(2),2,y(v)+4);}
+  ctx.fillText('generación',(W)/2-25,H-B+13); ctx.fillText('0',L,H-B+13); ctx.fillText(String(n-1),x(n-1)-14,H-B+13);
+  const line=(key,color,dash)=>{ctx.beginPath();ctx.setLineDash(dash||[]);ctx.strokeStyle=color;ctx.lineWidth=1.8;run.history.forEach((h,i)=>{const v=h[key]; i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v));});ctx.stroke();ctx.setLineDash([]);};
+  const ref=refFitness(); ctx.strokeStyle='#ffffff55'; ctx.setLineDash([2,4]); ctx.beginPath(); ctx.moveTo(L,y(ref)); ctx.lineTo(W-R,y(ref)); ctx.stroke(); ctx.setLineDash([]);
+  line('feasible_frac','#c77dff',[5,4]); line('mean_fitness','#ffb020'); line('best_fitness','#5ab0ff');
+  if(mode==='gen'){ctx.strokeStyle='#fff';ctx.beginPath();ctx.moveTo(x(gen),T);ctx.lineTo(x(gen),H-B);ctx.stroke();}
+  const items=[['Mejor','#5ab0ff'],['Media población','#ffb020'],['% factibles','#c77dff'],['Referencia máx.','#ffffff88']];
+  let lx=L+8; items.forEach(([t,c])=>{ctx.fillStyle=c;ctx.fillRect(lx,H-8,10,3);ctx.fillStyle='#c8d2e6';ctx.fillText(t,lx+14,H-4);lx+=ctx.measureText(t).width+30;});
+}
+
+// ---------------------------------------------------------------- panel de experimentos
+function tbl(rows){
+  return `<table><tr><th>Método</th><th>Corridas</th><th>Aptitud media ± desv.</th><th>Mín</th><th>Máx</th><th>% factibles</th><th>Regiones cubiertas</th><th>Gen. para 0.90</th></tr>`+
+   rows.map(s=>`<tr><td>${s.label}</td><td>${s.runs}</td><td>${s.fitness_mean} ± ${s.fitness_std<0.0001?'< 0.0001':s.fitness_std}</td><td>${s.fitness_min}</td><td>${s.fitness_max}</td><td>${s.feasible_pct}%</td><td>${s.covered_mean}</td><td>${s.gen_reach_090_mean==null?'-':s.gen_reach_090_mean+' ('+s.reach_090_pct+'%)'}</td></tr>`).join('')+'</table>';
+}
+function expPanel(){
+  const E=D.experiments, p=E.params;
+  let h=`<h2 style="margin-top:0">Evidencia experimental</h2><p class="sub">${p.seeds} semillas por configuración · ${p.budget} evaluaciones por corrida · la búsqueda aleatoria usa el mismo presupuesto · tiempo total ${E.elapsed_s} s.</p>`;
+  h+=`<h3>E1 · Etapa 1 (sin restricciones)</h3>`+tbl(E.E1.summary)+`<p class="sub">Referencia construida a mano (máximo alcanzable con este modelo): ${E.E1.reference.fitness}</p>`;
+  h+=`<h3>E2 · Etapa 2 · estrategias de manejo de restricciones</h3>`+tbl(E.E2.summary)+`<p class="sub">Referencia: ${E.E2.reference.fitness}</p>`;
+  h+=`<canvas id="c2" style="width:100%;max-width:1100px;height:220px"></canvas>`;
+  h+=`<h3>E3 · ¿Las soluciones de la Etapa 1 siguen siendo válidas con restricciones?</h3><p>Válidas: <b>${E.E3.valid_pct}%</b> de ${E.E3.rows.length}.</p>`;
+  const bad=E.E3.rows.filter(r=>!r.feasible_e2);
+  if(bad.length) h+='<table><tr><th>Semilla</th><th>Violación</th><th>Causas</th></tr>'+bad.map(r=>`<tr><td>${r.seed}</td><td>${r.violation_e2}°</td><td>${[...new Set(r.violations)].join(', ')}</td></tr>`).join('')+'</table>';
+  h+='<h3>E4 · Cambios de condiciones</h3>';
+  for(const [k,d] of Object.entries(E.E4)){
+    const o=d.old_config;
+    h+=`<h4>${k}</h4><p>${d.description}</p><p>Configuración anterior evaluada con las nuevas condiciones: aptitud <b>${o.fitness}</b>, factible: <b class="${o.feasible?'st-cubierta':'st-no'}">${o.feasible?'sí':'no'}</b>, regiones cubiertas ${o.n_covered}.`+
+       (o.violations.length? ' Incumple: '+o.violations.map(v=>`S${v.sat+1} en ${v.zone||'separación'} (${v.depth_deg}°)`).join('; '):'')+`</p>`+tbl(d.summary)+`<p class="sub">Referencia: ${d.reference.fitness}</p>`;
+  }
+  h+='<h3>E5 · Sensibilidad de parámetros (Etapa 2, reparación)</h3>'+tbl(E.E5);
+  $('expPanel').innerHTML=h;
+  // curvas medias E2
+  const cv=$('c2'), W=cv.clientWidth, H=220, dpr=window.devicePixelRatio||1; cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); const L=34,R=10,T=10,B=24;
+  const curves=E.E2.curves, n=Object.values(curves)[0].length, x=i=>L+(W-L-R)*i/(n-1), y=v=>T+(H-T-B)*(1-v);
+  ctx.font='11px system-ui'; ctx.strokeStyle='#24304a'; ctx.fillStyle='#8c9ab5';
+  for(let v=0;v<=1.001;v+=0.25){ctx.beginPath();ctx.moveTo(L,y(v));ctx.lineTo(W-R,y(v));ctx.stroke();ctx.fillText(v.toFixed(2),2,y(v)+4);}
+  const cols={ignorar:'#ff4d5e',penalizacion:'#ffb020',deb:'#3ddc84',reparacion:'#5ab0ff'};
+  let lx=L+10;
+  for(const [k,c] of Object.entries(curves)){ctx.strokeStyle=cols[k];ctx.lineWidth=1.8;ctx.beginPath();c.forEach((v,i)=>i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v)));ctx.stroke();
+    ctx.fillStyle=cols[k];ctx.fillRect(lx,H-B-14,10,3);ctx.fillStyle='#c8d2e6';ctx.fillText(k,lx+14,H-B-10);lx+=ctx.measureText(k).width+34;}
+  const rnd=E.E2.summary.find(s=>s.label.startsWith('Búsqueda')).fitness_mean;
+  ctx.setLineDash([4,4]);ctx.strokeStyle='#aaa';ctx.beginPath();ctx.moveTo(L,y(rnd));ctx.lineTo(W-R,y(rnd));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#aaa';ctx.fillText('búsqueda aleatoria (media final)',W-R-190,y(rnd)-5);
+  ctx.fillText('Mejor aptitud media por generación (Etapa 2). Nota: "ignorar" puede terminar con soluciones infactibles.',L+4,T+10);
+}
+
+// ---------------------------------------------------------------- eventos
+function selectRun(i){
+  run=D.runs[i]; gen=run.history.length-1;
+  $('genSlider').max=run.history.length-1; $('genSlider').value=gen;
+  buildStatic(); runInfo(); setMode('final');
+}
+function setMode(m){
+  mode=m; document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  if(m==='initial'){ $('genSlider').value=0; } if(m==='final'){ $('genSlider').value=run.history.length-1; }
+  render();
+}
+sel.onchange=()=>selectRun(+sel.value);
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{stop();setMode(b.dataset.mode);});
+$('genSlider').oninput=e=>{stop();gen=+e.target.value;mode='gen';document.querySelectorAll('.seg button').forEach(b=>b.classList.remove('on'));render();};
+function stop(){if(playing){clearInterval(playing);playing=null;$('play').textContent='▶ Reproducir evolución';}}
+$('play').onclick=()=>{
+  if(playing){stop();return;}
+  mode='gen'; gen=0; document.querySelectorAll('.seg button').forEach(b=>b.classList.remove('on')); $('play').textContent='❚❚ Pausa';
+  playing=setInterval(()=>{ $('genSlider').value=gen; render(); gen++; if(gen>=run.history.length){gen=run.history.length-1;stop();setMode('final');} }, 80);
+};
+['lyFoot','lyZones'].forEach(id=>$(id).onchange=render);
+$('tabGlobe').onclick=()=>{$('expPanel').style.display='none';$('tabGlobe').classList.add('on');$('tabExp').classList.remove('on');};
+$('tabExp').onclick=()=>{$('expPanel').style.display='block';$('tabExp').classList.add('on');$('tabGlobe').classList.remove('on');expPanel();};
+
+function resize(){const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();if(run)drawChart();}
+window.addEventListener('resize',resize);
+function loop(){requestAnimationFrame(loop); if($('lyRotate').checked){camera.position.applyAxisAngle(new THREE.Vector3(0,1,0),0.002);} controls.update(); renderer.render(scene,camera); updateLabels();}
+resize();
+{ // enlace directo: index.html#run=cambio_golfo&mode=compare
+  const q=new URLSearchParams(location.hash.slice(1)); const i=D.runs.findIndex(r=>r.id===q.get('run'));
+  selectRun(i>=0?i:0); if(i>=0) sel.value=i; if(['initial','final','compare'].includes(q.get('mode'))) setMode(q.get('mode'));
+  if(q.get('tab')==='exp') $('tabExp').click();
+}
+loop();
+$('hint').textContent='Arrastra para girar · rueda para acercar · los datos provienen de la ejecución real del algoritmo';
+})();
+</script>
+</body>
+</html>
