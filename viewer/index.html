@@ -127,6 +127,11 @@ main{position:relative;display:grid;grid-template-rows:1fr 230px;min-width:0}
 (function(){
 const D = window.ASTRO_DATA;
 if(!D){document.getElementById('err').style.display='block';document.getElementById('app').style.display='none';return;}
+if(typeof THREE==='undefined'){
+  const err=document.getElementById('err');
+  err.textContent='No se pudo cargar Three.js desde la CDN. El visor necesita conexión a internet.';
+  err.style.display='block';document.getElementById('app').style.display='none';return;
+}
 const $ = id => document.getElementById(id);
 const COL = {ok:0x3ddc84, warn:0xffb020, bad:0xff4d5e, debris:0xff5a36, obj:0xc77dff, foot:0x5ab0ff, sat:0xffffff, ghost:0x8a8a8a};
 const STCOL = {"cubierta":COL.ok,"parcial":COL.warn,"no cubierta":COL.bad};
