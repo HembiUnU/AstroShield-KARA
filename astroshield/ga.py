@@ -54,6 +54,20 @@ class GAConfig:
     penalty_k: float = 0.05          # por grado de violación
     seed: int = 1
 
+    def __post_init__(self):
+        # sin esta revisión, una estrategia mal escrita se comportaría como
+        # "deb" sin avisar (ver make_key)
+        if self.strategy not in STRATEGIES:
+            raise ValueError(f"estrategia '{self.strategy}' desconocida; opciones: {STRATEGIES}")
+        if self.pop_size < 2 or self.generations < 1:
+            raise ValueError("pop_size debe ser >= 2 y generations >= 1")
+        if not 0 <= self.elitism < self.pop_size:
+            raise ValueError("elitism debe estar en [0, pop_size)")
+        if not 1 <= self.tournament <= self.pop_size:
+            raise ValueError("tournament debe estar en [1, pop_size]")
+        if self.reset_rate + self.targeted_rate + self.mutation_rate > 1:
+            raise ValueError("reset_rate + targeted_rate + mutation_rate no puede pasar de 1")
+
 
 @dataclass
 class Individual:
