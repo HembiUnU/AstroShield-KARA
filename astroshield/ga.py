@@ -170,8 +170,8 @@ class GA:
         for _ in range(max_iter):
             moved = False
             for i, s in enumerate(sats):
-                for z, _zv in self.ev.zones:
-                    d = g.ang_dist(s[0], s[1], z.lat, z.lon)
+                for z, zv in self.ev.zones:
+                    d = g.ang_dist_vec(g.to_vec(*s), zv)
                     if d < z.radius:
                         brg = (g.bearing(z.lat, z.lon, s[0], s[1]) if d > 1e-6
                                else self.rng.uniform(0, 360))
