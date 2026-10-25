@@ -2,6 +2,14 @@
 
 Proyecto educativo que usa un **algoritmo genético** para colocar **8 satélites** sobre **6 regiones** con distintas prioridades, respetando zonas de desechos, posiciones ocupadas y una separación mínima. El resultado se muestra en un **globo 3D** (Three.js) construido con los datos reales de cada ejecución.
 
+**Grupo:** LITTID72
+
+**Integrantes:**
+* Angeles García ROberto Pablo
+* Cortez Vargas Kristopher Eiael
+* Morales Millan Jade Alejandro
+* Navarro Galván José Antonio
+
 ## Inicio rápido
 
 Requiere **Python 3.10+** (sólo biblioteca estándar) y un navegador con WebGL e internet (Three.js se carga desde una CDN).
@@ -184,10 +192,10 @@ Lee `viewer/data.js` (generado por `python main.py experiments`); ninguna conste
 Se usaron **Claude** (Anthropic, mediante Claude Code en VS Code) y **ChatGPT/Codex** (OpenAI).
 
 * **Claude** generó la mayor parte del proyecto a partir del enunciado: propuso el modelo y sus decisiones (sección 1), escribió el código, los escenarios, las pruebas y el visor, y ejecutó los experimentos (los archivos de `results/` y `viewer/data.js` son su salida real). Al revisar resultados agregó la reubicación dirigida. Después agregó validaciones de escenarios y de configuración, sin cambiar los resultados. Redactó la documentación, revisó el proyecto contra el enunciado y explicó el uso de git.
-* **ChatGPT/Codex** ayudó a revisar y redactar una versión resumida del README y a explicar el flujo de Git y GitHub. Este README combina ambas versiones.
+* **ChatGPT/Codex** ayudó a revisar y redactar una versión resumida del README y a explicar el flujo de Git y GitHub.
 * La textura de la Tierra proviene del ejemplo *earth-blue-marble* de `three-globe` (imágenes Blue Marble de la NASA).
 
-**Verificaciones de la IA:** corrió las pruebas, comparó contra búsqueda aleatoria y contra la referencia, revisó la ubicación de los satélites sobrantes y tomó capturas del visor.
+**Verificaciones de la IA:** Comparó contra búsqueda aleatoria y contra la referencia, revisó la ubicación de los satélites sobrantes y tomó capturas del visor.
 
 **Verificaciones del equipo:**
 * Se compararon las coordenadas, radios y prioridades de `scenarios/etapa2.json` con las del enunciado.
@@ -196,4 +204,4 @@ Se usaron **Claude** (Anthropic, mediante Claude Code en VS Code) y **ChatGPT/Co
 * Se abrió el visor y se comprobó que hay 8 satélites, que las zonas aparecen donde dicen las coordenadas y que Japón sale parcial en `cambio_japon`.
 * Se contrastaron los comandos, rutas y resultados de la documentación con el repositorio, y se ejecutó el escenario base: 8 satélites, 6 regiones cubiertas y violación cero.
 
-Cada integrante debe poder explicar las decisiones del sistema. Las aportaciones se consultan en el [historial de commits](https://github.com/HembiUnU/AstroShield-KARA/commits/main/).
+
