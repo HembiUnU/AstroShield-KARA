@@ -151,6 +151,7 @@ class Evaluator:
     def report(self, sats):
         """Evaluación completa en forma de diccionario (para exportar)."""
         e = self.evaluate(sats, details=True)
+        # un reporte no forma parte de la búsqueda: no cuenta en el presupuesto
         self.n_evals -= 1
         return {
             "fitness": round(e.fitness, 5),
