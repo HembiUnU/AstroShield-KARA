@@ -17,6 +17,7 @@ def to_vec(lat, lon):
 
 
 def to_latlon(v):
+    """Vector (x, y, z), no necesariamente unitario -> (lat, lon) en grados."""
     x, y, z = v
     n = math.sqrt(x * x + y * y + z * z)
     return (math.degrees(math.asin(max(-1.0, min(1.0, z / n)))),
@@ -24,6 +25,7 @@ def to_latlon(v):
 
 
 def dot(a, b):
+    """Producto punto; entre vectores unitarios es el coseno del ángulo."""
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 
@@ -38,10 +40,12 @@ def ang_dist(lat1, lon1, lat2, lon2):
 
 
 def km_to_deg(km):
+    """Distancia sobre la superficie (km) -> ángulo central (grados)."""
     return math.degrees(km / R_EARTH_KM)
 
 
 def deg_to_km(deg):
+    """Ángulo central (grados) -> distancia sobre la superficie (km)."""
     return math.radians(deg) * R_EARTH_KM
 
 
