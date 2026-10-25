@@ -36,6 +36,7 @@ from typing import List
 from . import geometry as g
 
 N_SAMPLES = 37
+FEASIBILITY_TOL = 1e-9   # violaciones menores (grados) se deben a redondeo
 
 
 @dataclass
@@ -145,7 +146,7 @@ class Evaluator:
         wcov = cov_sum / W
         fitness = fw["coverage"] * wcov + fw["redundancy"] * red_sum / W + fw["proximity"] * prox_sum / W
         viol, info = self.violation(sats, details)
-        return Evaluation(fitness, viol, viol <= 1e-9, wcov, statuses, info)
+        return Evaluation(fitness, viol, viol <= FEASIBILITY_TOL, wcov, statuses, info)
 
     def report(self, sats):
         """Evaluación completa en forma de diccionario (para exportar)."""
