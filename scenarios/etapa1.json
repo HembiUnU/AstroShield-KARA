@@ -1,4 +1,5 @@
 {
+  "$comment": "Regiones, coordenadas, prioridades y radio de 300 km tomados del enunciado (sección 1). Altitud, elevación mínima, umbral y pesos son decisiones del equipo (README, sección 1).",
   "name": "etapa1",
   "description": "Etapa 1: 8 satélites, 6 regiones, sin restricciones espaciales ni separación mínima.",
   "n_satellites": 8,
